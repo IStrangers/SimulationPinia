@@ -24,7 +24,11 @@ function defineStore(nameOrOptions : any,setup : any) {
     }
     const { scpoeMap } = pinia
     if(!scpoeMap.has(name)) {
-      createOptionsStore(name,options,pinia)
+      if(typeof options === "function") {
+        createSetupStore(name,options,pinia)
+      } else {
+        createOptionsStore(name,options,pinia)
+      }
     }
     const store = scpoeMap.get(name)
     return store
@@ -32,28 +36,12 @@ function defineStore(nameOrOptions : any,setup : any) {
   return useStore
 }
 
-function createOptionsStore(name : string,options : any,pinia : PiniaInstances) {
-  const { state,getters,actions } = options
+function createSetupStore(name : string,setup : Function,pinia : PiniaInstances) {
+  const store = reactive({})
   const { scpoeMap } = pinia
 
-  let scpoe
-  const store = reactive({})
-  function setup() {
-    pinia.state.value[name] = state ? state() : {}
-    const localState = toRefs(pinia.state.value[name])
-    return Object.assign(
-      localState,
-      Object.keys(getters || {}).reduce((computedGetters : any,name : any) => {
-        computedGetters[name] = computed(() => {
-          return getters[name].call(store,store)
-        })
-        return computedGetters
-      },{}),
-      actions
-    )
-  }
   const setupStore = pinia.scpoe.run(() => {
-    scpoe = effectScope()
+    const scpoe = effectScope()
     return scpoe.run(() => setup())
   })
 
@@ -72,6 +60,29 @@ function createOptionsStore(name : string,options : any,pinia : PiniaInstances) 
 
   Object.assign(store,setupStore)
   scpoeMap.set(name,store)
+  return store
+}
+
+function createOptionsStore(name : string,options : any,pinia : PiniaInstances) {
+  const { state,getters,actions } = options
+  
+  function setup() {
+    pinia.state.value[name] = state ? state() : {}
+    const localState = toRefs(pinia.state.value[name])
+    return Object.assign(
+      localState,
+      Object.keys(getters || {}).reduce((computedGetters : any,name : any) => {
+        computedGetters[name] = computed(() => {
+          return getters[name].call(store,store)
+        })
+        return computedGetters
+      },{}),
+      actions
+    )
+  }
+
+  const store = createSetupStore(name,setup,pinia)
+  return store
 }
 
 export {

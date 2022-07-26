@@ -1,9 +1,9 @@
 <script setup lang="ts">
-  import { useCounterStore } from "./stores/counter"
+  import { useCounterOptionsStore,useCounterSetupStore } from "./stores/counter"
 
-  const store = useCounterStore()
+  const store = useCounterSetupStore()
   const handleClick = () => {
-    store.count++
+    store.increment()
   }
   console.log(store)
 </script>
