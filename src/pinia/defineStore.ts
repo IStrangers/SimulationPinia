@@ -1,6 +1,8 @@
-import { computed, effectScope, getCurrentInstance, inject, reactive, toRefs } from "vue"
+import { computed, effectScope, getCurrentInstance, inject, reactive, toRefs, watch, WatchOptions } from "vue"
+import { addSubscription, triggerSubscription } from "./pubSub"
 import { SymbolPinia } from "./rootStore"
 import { PiniaInstances } from "./types/PiniaInstances"
+import { isFunction, isString, mergeReactiveObject } from "./utils"
 
 function defineStore(nameOrOptions : any,setup : any) {
   if(arguments.length === 0) {
@@ -8,7 +10,7 @@ function defineStore(nameOrOptions : any,setup : any) {
   }
   let name : string
   let options : any
-  if(typeof nameOrOptions === "string") {
+  if(isString(nameOrOptions)) {
     name = nameOrOptions
     options = setup
   } else {
@@ -24,7 +26,7 @@ function defineStore(nameOrOptions : any,setup : any) {
     }
     const { scpoeMap } = pinia
     if(!scpoeMap.has(name)) {
-      if(typeof options === "function") {
+      if(isFunction(options)) {
         createSetupStore(name,options,pinia)
       } else {
         createOptionsStore(name,options,pinia)
@@ -36,24 +38,86 @@ function defineStore(nameOrOptions : any,setup : any) {
   return useStore
 }
 
+function createStore(scpoe : any, name : string, pinia : PiniaInstances,actionSubscribes : Array<Function>) {
+  
+  function $patch(partialStateOrMutation : any) {
+    if(isFunction(partialStateOrMutation)) {
+      partialStateOrMutation(store)
+    } else {
+      mergeReactiveObject(store,partialStateOrMutation)
+    }
+  }
+
+  function $reset() {
+    throw Error("Only options storage can be reset")
+  }
+
+  function $subscribe(callback : Function,options? : any) {
+    scpoe.run(() => watch(pinia.state.value[name],(state) => {
+      callback({type: "dirct"},state)
+    },options))
+  }
+
+  const $onAction = addSubscription.bind(null,actionSubscribes)
+
+  const store = reactive({
+    $patch,
+    $reset,
+    $subscribe,
+    $onAction,
+  })
+
+  return store
+}
+
+
 function createSetupStore(name : string,setup : Function,pinia : PiniaInstances) {
-  const store = reactive({})
   const { scpoeMap } = pinia
 
+  let scpoe
   const setupStore = pinia.scpoe.run(() => {
-    const scpoe = effectScope()
+    scpoe = effectScope()
     return scpoe.run(() => setup())
   })
 
+  const actionSubscribes : Array<Function> = []
+  const store = createStore(scpoe,name,pinia,actionSubscribes)
+
   function wrapAction(name : string,action : Function) {
     return () => {
-      const res = action.apply(store,arguments)
+      const afterCallbackList : Array<Function> = []
+      const onErrorCallbackList : Array<Function> = []
+      function after(callback : Function) {
+        afterCallbackList.push(callback)
+      }
+      function onError(callback : Function) {
+        onErrorCallbackList.push(callback)
+      }
+      triggerSubscription(actionSubscribes,{after,onError,store,name})
+
+      let res
+      try {
+        res = action.apply(store,arguments)
+        if(res instanceof Promise) {
+          res.then((val) => {
+            triggerSubscription(afterCallbackList,val)
+          }).catch((error) => {
+            triggerSubscription(onErrorCallbackList,error)
+            return Promise.reject(error)
+          })
+        } else {
+          triggerSubscription(afterCallbackList,res)
+        }
+      } catch (error) {
+        triggerSubscription(onErrorCallbackList,error)
+      }
+
       return res
     }
   }
   for(let key in setupStore) {
     const prop = setupStore[key]
-    if(typeof prop === "function") {
+    if(isFunction(prop)) {
       setupStore[key] = wrapAction(key,prop)
     }
   }
@@ -82,6 +146,12 @@ function createOptionsStore(name : string,options : any,pinia : PiniaInstances) 
   }
 
   const store = createSetupStore(name,setup,pinia)
+  store.$reset = function() {
+    const newState = state ? state() : {}
+    store.$patch(($state : any) => {
+      Object.assign($state,newState)
+    })
+  }
   return store
 }
 

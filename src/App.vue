@@ -5,7 +5,9 @@
   const handleClick = () => {
     store.increment()
   }
-  console.log(store)
+  store.$subscribe((m : any,s : any) => {
+    console.log(s)
+  })
 </script>
 
 <template>
