@@ -10,7 +10,7 @@
 
 <template>
   计数器： {{store.count}}
-  计数器： {{store.doubleCount}}
+  双倍数： {{store.doubleCount}}
   <button @click="handleClick">点击</button>
 </template>
 

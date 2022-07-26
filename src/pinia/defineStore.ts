@@ -32,16 +32,15 @@ function defineStore(nameOrOptions : any,options : any) {
 
 function createOptionsStore(name : string,options : any,pinia : PiniaInstances) {
   const { state,getters,actions } = options
-  const { state: _state,scpoe: _scpoe,scpoeMap } = pinia
+  const { scpoeMap } = pinia
 
   let scpoe
   const store = reactive({})
   const setup = () => {
-    debugger
-    const localState = _state.value[name] = state ? state() : {}
+    const localState = pinia.state.value[name] = state ? state() : {}
     return localState
   }
-  const setupStore = _scpoe.run(() => {
+  const setupStore = pinia.scpoe.run(() => {
     scpoe = effectScope()
     return scpoe.run(() => setup())
   })
