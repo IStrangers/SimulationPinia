@@ -1,6 +1,6 @@
 import { computed, EffectScope, effectScope, getCurrentInstance, inject, reactive, toRefs, watch, WatchOptions } from "vue"
 import { addSubscription, triggerSubscription } from "./pubSub"
-import { SymbolPinia } from "./rootStore"
+import { getPiniaInstance, SymbolPinia } from "./rootStore"
 import { PiniaInstances } from "./types/PiniaInstances"
 import { isFunction, isString, mergeReactiveObject } from "./utils"
 
@@ -20,8 +20,9 @@ function defineStore(nameOrOptions : any,setup : any) {
 
   const useStore = () => {
     const currentInstance = getCurrentInstance()
-    const pinia : PiniaInstances | undefined = inject(SymbolPinia)
-    if(!currentInstance || !pinia) {
+    let pinia : PiniaInstances | undefined | null = currentInstance && inject(SymbolPinia)
+    pinia = pinia ? pinia : getPiniaInstance()
+    if(!pinia) {
       return
     }
     const { scpoeMap } = pinia

@@ -1,5 +1,5 @@
 import { effectScope, markRaw, ref } from "vue"
-import { SymbolPinia } from "./rootStore"
+import { setPiniaInstance, SymbolPinia } from "./rootStore"
 import { PiniaInstances } from "./types/PiniaInstances"
 
 function createPinia() : PiniaInstances {
@@ -17,6 +17,7 @@ function createPinia() : PiniaInstances {
       pinia.__Vue__ = app
       app.provide(SymbolPinia,pinia)
       app.config.globalProperties.$pinia = pinia
+      setPiniaInstance(pinia)
     },
     use(plugin : any) {
       plugins.push(plugin)
