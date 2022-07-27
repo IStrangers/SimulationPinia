@@ -1,13 +1,14 @@
 <script setup lang="ts">
   import { useCounterOptionsStore,useCounterSetupStore } from "./stores/counter"
 
-  const store = useCounterSetupStore()
+  const store = useCounterOptionsStore()
   const handleClick = () => {
     store.increment()
   }
   store.$subscribe((m : any,s : any) => {
     console.log(s)
   })
+  //store.$dispose()
 </script>
 
 <template>

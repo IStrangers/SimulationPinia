@@ -3,6 +3,7 @@ interface PiniaInstances {
   state : any
   scpoe : any
   scpoeMap : Map<string,any>,
+  plugins : Array<any>
   install(app: any): void
 }
 

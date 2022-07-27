@@ -1,4 +1,4 @@
-import { computed, effectScope, getCurrentInstance, inject, reactive, toRefs, watch, WatchOptions } from "vue"
+import { computed, EffectScope, effectScope, getCurrentInstance, inject, reactive, toRefs, watch, WatchOptions } from "vue"
 import { addSubscription, triggerSubscription } from "./pubSub"
 import { SymbolPinia } from "./rootStore"
 import { PiniaInstances } from "./types/PiniaInstances"
@@ -60,11 +60,23 @@ function createStore(scpoe : any, name : string, pinia : PiniaInstances,actionSu
 
   const $onAction = addSubscription.bind(null,actionSubscribes)
 
+  function $dispose() {
+    scpoe.stop()
+    actionSubscribes.length = 0
+    pinia.scpoeMap.delete(name)
+  }
+
   const store = reactive({
     $patch,
     $reset,
     $subscribe,
     $onAction,
+    $dispose,
+  })
+
+  Object.defineProperty(store,"$state",{
+    get: () => pinia.state.value[name],
+    set: (state) => $patch(($state : any) => Object.assign($state,state))
   })
 
   return store
@@ -72,7 +84,7 @@ function createStore(scpoe : any, name : string, pinia : PiniaInstances,actionSu
 
 
 function createSetupStore(name : string,setup : Function,pinia : PiniaInstances,isOptions : boolean = false) {
-  const { scpoeMap } = pinia
+  const { scpoeMap,plugins } = pinia
 
   let scpoe
   const setupStore = pinia.scpoe.run(() => {
@@ -130,6 +142,7 @@ function createSetupStore(name : string,setup : Function,pinia : PiniaInstances,
   }
 
   Object.assign(store,setupStore)
+  plugins.forEach(plugin => Object.assign(store,plugin({store,pinia})))
   scpoeMap.set(name,store)
   return store
 }
