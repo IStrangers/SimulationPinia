@@ -71,13 +71,20 @@ function createStore(scpoe : any, name : string, pinia : PiniaInstances,actionSu
 }
 
 
-function createSetupStore(name : string,setup : Function,pinia : PiniaInstances) {
+function createSetupStore(name : string,setup : Function,pinia : PiniaInstances,isOptions : boolean = false) {
   const { scpoeMap } = pinia
 
   let scpoe
   const setupStore = pinia.scpoe.run(() => {
     scpoe = effectScope()
-    return scpoe.run(() => setup())
+    return scpoe.run(() => {
+      const res = setup()
+      if(isOptions) {
+      } else {
+        pinia.state.value[name] = res
+      }
+      return res
+    })
   })
 
   const actionSubscribes : Array<Function> = []
@@ -145,7 +152,7 @@ function createOptionsStore(name : string,options : any,pinia : PiniaInstances) 
     )
   }
 
-  const store = createSetupStore(name,setup,pinia)
+  const store = createSetupStore(name,setup,pinia,true)
   store.$reset = function() {
     const newState = state ? state() : {}
     store.$patch(($state : any) => {
